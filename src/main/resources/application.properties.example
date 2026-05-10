@@ -1,0 +1,19 @@
+
+# PostgreSQL — preencha com suas credenciais
+spring.datasource.url=jdbc:postgresql://localhost:5432/floriHub
+spring.datasource.username=SEU_USUARIO
+spring.datasource.password=SUA_SENHA
+spring.datasource.driver-class-name=org.postgresql.Driver
+
+# JPA / Hibernate
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.format_sql=true
+spring.jpa.open-in-view=false
+
+# JWT — gere um secret com: openssl rand -base64 32
+jwt.secret=SEU_SECRET_BASE64
+jwt.expiration=86400000
+
+# Nome da aplicação
+spring.application.name=florihub-backend
