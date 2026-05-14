@@ -10,8 +10,6 @@ import com.br.florihub.florihubbackend.security.JwtService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -25,32 +23,42 @@ public class AuthService {
     private JwtService jwtService;
 
     @Autowired
-    private UserDetailsService userDetailsService;
-
-    @Autowired
     private UsuarioRepository usuarioRepository;
 
     @Autowired
-    private PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+    private PasswordEncoder passwordEncoder;
 
     public AuthService(AuthenticationManager authManager, JwtService jwtService,
-                       UserDetailsService userDetailsService, UsuarioRepository usuarioRepository) {
+                       UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder) {
         this.authManager = authManager;
         this.jwtService = jwtService;
-        this.userDetailsService = userDetailsService;
         this.usuarioRepository = usuarioRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     public AuthResponse login(LoginRequest request) {
-        authManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.email(), request.senha()));
+        try {
+            // Autenticar
+            authManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.email(), request.senha()));
 
-        var userDetails = userDetailsService.loadUserByUsername(request.email());
-        var token = jwtService.gerarToken(userDetails);
+            // Buscar usuário
+            var usuario = usuarioRepository.findByEmail(request.email())
+                    .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
 
-        var usuario = usuarioRepository.findByEmail(request.email()).orElseThrow();
-        return new AuthResponse(token, "Bearer", usuario.getNome(),
-                usuario.getEmail(), usuario.getRole());
+            // Gerar token
+            var token = jwtService.gerarToken(new org.springframework.security.core.userdetails.User(
+                    usuario.getEmail(), 
+                    usuario.getSenhaHash(),
+                    org.springframework.security.core.authority.AuthorityUtils
+                            .createAuthorityList("ROLE_" + usuario.getRole())
+            ));
+
+            return new AuthResponse(token, "Bearer", usuario.getNome(),
+                    usuario.getEmail(), usuario.getRole());
+        } catch (Exception e) {
+            throw new RuntimeException("Falha na autenticação: " + e.getMessage(), e);
+        }
     }
 
     public UsuarioResponse registrar(UsuarioRequest request) {
@@ -64,5 +72,4 @@ public class AuthService {
         usuario.setRole(request.role().toUpperCase());
         return UsuarioResponse.from(usuarioRepository.save(usuario));
     }
-
 }
